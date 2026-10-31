@@ -1,0 +1,32 @@
+name: 🐛 Problema
+description: Algo não funciona como o README descreve
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "⚠️ **Não cole sua local_key, device_id ou IP.** Troque por `***`."
+  - type: input
+    id: modelo
+    attributes:
+      label: Modelo do robô e versão do firmware (no app Smart Life)
+      placeholder: "WAP W1000, firmware 1.x.x"
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Versão do Home Assistant e do LocalTuya
+      placeholder: "HA 2026.10.4, localtuya_bildass 2026.x"
+    validations:
+      required: true
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu e o que você esperava
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log ou status dos DPs (opcional)
+      render: text

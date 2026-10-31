@@ -1,0 +1,29 @@
+name: 🔍 Novo DP descoberto
+description: Descobriu o que um DP faz (ou um valor novo)? Conte aqui
+labels: [dp]
+body:
+  - type: input
+    id: dp
+    attributes:
+      label: Número do DP
+      placeholder: "ex.: 104"
+    validations:
+      required: true
+  - type: input
+    id: valores
+    attributes:
+      label: Valores que ele assume
+      placeholder: "ex.: true / false"
+    validations:
+      required: true
+  - type: textarea
+    id: como
+    attributes:
+      label: Como você descobriu (o que fez no app/controle e o que mudou)
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Trecho do log do robo_dps_log.py (opcional)
+      render: text

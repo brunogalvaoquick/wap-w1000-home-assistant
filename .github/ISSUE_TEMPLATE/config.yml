@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Dúvidas gerais do Home Assistant
+    url: https://community.home-assistant.io/
+    about: Para dúvidas que não são deste robô, a comunidade do HA ajuda mais.

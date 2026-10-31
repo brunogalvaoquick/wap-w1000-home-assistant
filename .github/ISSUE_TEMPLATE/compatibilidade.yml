@@ -1,0 +1,25 @@
+name: ✅ Funciona no meu robô
+description: Conte se funcionou (ou não) no seu modelo
+labels: [compatibilidade]
+body:
+  - type: input
+    id: modelo
+    attributes:
+      label: Modelo, versão do firmware e protocolo Tuya
+      placeholder: "WAP W1000, firmware 1.x.x, protocolo 3.5"
+    validations:
+      required: true
+  - type: checkboxes
+    id: funciona
+    attributes:
+      label: O que funcionou
+      options:
+        - label: Ligar / parar / voltar à base
+        - label: Bateria, escovas e filtro
+        - label: Aspiração e água (mop)
+        - label: Registro da última limpeza (DP 15)
+        - label: Códigos de falha (DP 18)
+  - type: textarea
+    id: obs
+    attributes:
+      label: Observações
