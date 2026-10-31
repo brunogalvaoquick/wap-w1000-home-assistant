@@ -1,0 +1,44 @@
+# Robô aspirador WAP W1000 (vacuum.robo_w1000, LocalTuya).
+# Ajudantes usados pelas automações do robô (automations.yaml: robo_*).
+input_boolean:
+  robo_limpeza_auto:
+    name: "Robô — limpeza automática"
+    icon: mdi:robot-vacuum
+
+input_datetime:
+  robo_cmd_base:
+    name: "Robô — último 'voltar à base' pelo HA"
+    has_date: true
+    has_time: true
+
+# DP 15 do robô = registro da última limpeza, ex.: "01200900015"
+#   012 = minutos, 009 = m², 00015 = nº do registro (confirmado com o app: 15/10 21:41, 9 m², 12 min)
+template:
+  - sensor:
+      - name: "Robô última limpeza tempo"
+        unique_id: robo_ultima_limpeza_tempo
+        unit_of_measurement: "min"
+        icon: mdi:timer-outline
+        state: >
+          {% set r = states('sensor.robo_w1000_robo_registro_limpeza') %}
+          {{ r[0:3] | int if r | length >= 6 and r[0:3] is match('^[0-9]+$') else none }}
+        availability: "{{ states('sensor.robo_w1000_robo_registro_limpeza') | length >= 6 }}"
+      - name: "Robô última limpeza área"
+        unique_id: robo_ultima_limpeza_area
+        unit_of_measurement: "m²"
+        icon: mdi:texture-box
+        state: >
+          {% set r = states('sensor.robo_w1000_robo_registro_limpeza') %}
+          {{ r[3:6] | int if r | length >= 6 and r[3:6] is match('^[0-9]+$') else none }}
+        availability: "{{ states('sensor.robo_w1000_robo_registro_limpeza') | length >= 6 }}"
+
+# Mop: sem o reservatório de água/mop o robô trava a água (DP 101) em "close" (= "Sem água").
+# Confirmado em 16/10: com o reservatório de aspirar ele muda sozinho para close e não deixa mudar.
+  - binary_sensor:
+      - name: "Robô com mop"
+        unique_id: robo_com_mop
+        icon: >
+          {{ 'mdi:water' if is_state('binary_sensor.robo_com_mop', 'on') else 'mdi:broom' }}
+        state: >
+          {{ states('select.robo_w1000_robo_agua') not in ['Sem água', 'unknown', 'unavailable'] }}
+        availability: "{{ states('select.robo_w1000_robo_agua') not in ['unknown', 'unavailable'] }}"

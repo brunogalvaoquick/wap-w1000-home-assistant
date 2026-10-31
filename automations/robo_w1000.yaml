@@ -1,0 +1,188 @@
+- id: robo_registra_comando_base
+  alias: Robô - registra 'voltar à base' mandado pelo HA
+  description: Guarda a hora em que o HA (painel ou automação) mandou o robô para
+    a base, para o aviso saber o motivo.
+  triggers:
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: vacuum
+      service: return_to_base
+  actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.robo_cmd_base
+    data:
+      timestamp: '{{ now().timestamp() }}'
+  mode: single
+- id: robo_aviso_base
+  alias: Robô - avisa quando volta para a base (com motivo) ou dá erro
+  description: 'Avisa no celular quando o robô volta para a base e diz o motivo: erro,
+    comando pelo HA, bateria baixa ou fim da limpeza. Também avisa quando ele entra
+    em erro (travou, preso, etc.).'
+  triggers:
+  - trigger: state
+    entity_id: vacuum.robo_w1000
+    to: returning
+    id: voltando
+  - trigger: state
+    entity_id: vacuum.robo_w1000
+    from:
+    - cleaning
+    - paused
+    to: docked
+    id: chegou
+  - trigger: state
+    entity_id: vacuum.robo_w1000
+    to: error
+    id: erro
+  variables:
+    bat: '{{ states(''sensor.robo_w1000_robo_bateria'') | int(0) }}'
+    tempo: '{{ state_attr(''vacuum.robo_w1000'', ''clean_time'') | int(0) }}'
+    area: '{{ state_attr(''vacuum.robo_w1000'', ''clean_area'') | int(0) }}'
+    falha: '{{ state_attr(''vacuum.robo_w1000'', ''fault'') | int(0) }}'
+    falha_txt: "{% set m = {2: 'roda travada/presa', 4: 'sensor de queda (degrau)\
+      \ sujo ou bloqueado',\n            8: 'escova central enroscada', 16: 'escova\
+      \ lateral enroscada',\n            32: 'sem reservatório (água ou poeira)',\
+      \ 512: 'sensor/para-choque da frente travado'} %}\n{% set ns = namespace(l=[])\
+      \ %} {% for b, t in m.items() %}{% if (falha | bitwise_and(b)) > 0 %}{% set\
+      \ ns.l = ns.l + [t] %}{% endif %}{% endfor %} {{ ns.l | join(', ') if ns.l else\
+      \ 'código ' ~ falha ~ ' (desconhecido)' }}"
+    cmd_ha: '{% set t = as_timestamp(states(''input_datetime.robo_cmd_base''), 0)
+      %} {{ (as_timestamp(now()) - t) < 120 }}'
+    motivo: '{% if falha != 0 %}erro no robô: {{ falha_txt | trim }} {% elif cmd_ha
+      %}mandado pelo HA (painel ou automação) {% elif bat <= 25 %}bateria baixa ({{
+      bat }}%) {% elif tempo < 3 %}mandado pelo app ou controle remoto {% else %}terminou
+      a limpeza{% endif %}'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: erro
+      sequence:
+      - action: notify.send_message
+        target:
+          entity_id: notify.SEU_CELULAR
+        data:
+          message: '⚠️ Robô aspirador com ERRO: {{ falha_txt | trim }} (código {{
+            falha }}). Bateria {{ bat }}% · {{ tempo }} min · {{ area }} m².'
+    default:
+    - condition: template
+      value_template: '{{ trigger.id == ''voltando'' or trigger.from_state.state !=
+        ''returning'' }}'
+    - action: notify.send_message
+      target:
+        entity_id: notify.SEU_CELULAR
+      data:
+        message: '🤖 Robô voltando para a base — motivo: {{ motivo | trim }}. Limpou
+          {{ tempo }} min · {{ area }} m² · bateria {{ bat }}%.'
+  mode: queued
+- id: robo_limpeza_casa_vazia
+  alias: Robô - limpeza diária às 9h (ou antes, se a casa ficar vazia)
+  description: Limpa todo dia às 9h. Se todo mundo sair de casa antes (zona Casa com
+    0 pessoas por 10 min, entre 8h e 19h), começa nessa hora. Aspiração Forte se a
+    casa estiver vazia, Normal se tiver gente. No máximo uma vez por dia, só com o
+    robô na base e bateria acima de 60%. Liga/desliga em input_boolean.robo_limpeza_auto.
+  triggers:
+  - trigger: time
+    at: 09:00:00
+    id: horario
+  - trigger: numeric_state
+    entity_id: zone.home
+    below: 1
+    for:
+      minutes: 10
+    id: casa_vazia
+  conditions:
+  - condition: state
+    entity_id: input_boolean.robo_limpeza_auto
+    state: 'on'
+  - condition: time
+    after: 08:00:00
+    before: '19:00:00'
+  - condition: state
+    entity_id: vacuum.robo_w1000
+    state: docked
+  - condition: numeric_state
+    entity_id: sensor.robo_w1000_robo_bateria
+    above: 59
+  - condition: template
+    value_template: '{% set ult = this.attributes.last_triggered %} {{ ult is none
+      or as_local(ult).date() != now().date() }}'
+  actions:
+  - action: select.select_option
+    continue_on_error: true
+    target:
+      entity_id: select.robo_w1000_robo_aspiracao
+    data:
+      option: '{{ ''Forte'' if states(''zone.home'') | int(0) == 0 else ''Normal''
+        }}'
+  - delay: 2
+  - action: vacuum.start
+    target:
+      entity_id: vacuum.robo_w1000
+  - action: notify.send_message
+    target:
+      entity_id: notify.SEU_CELULAR
+    data:
+      message: '🧹 {{ ''Limpeza das 9h'' if trigger.id == ''horario'' else ''Casa vazia''
+        }}: o robô começou a limpeza na aspiração {{ ''FORTE (casa vazia)'' if states(''zone.home'')
+        | int(0) == 0 else ''NORMAL (tem gente em casa)'' }} (bateria {{ states(''sensor.robo_w1000_robo_bateria'')
+        }}%).'
+  mode: single
+- id: robo_pecas_trocar
+  alias: Robô - avisa quando escova ou filtro precisa trocar
+  description: Todo dia às 10h, se escova lateral, escova central ou filtro estiver
+    abaixo de 10%, avisa.
+  triggers:
+  - trigger: time
+    at: '10:00:00'
+  variables:
+    pecas: "{% set p = {'escova lateral': 'sensor.robo_w1000_robo_escova_lateral',\n\
+      \            'escova central': 'sensor.robo_w1000_robo_escova_central',\n  \
+      \          'filtro': 'sensor.robo_w1000_robo_filtro'} %}\n{% set ns = namespace(l=[])\
+      \ %} {% for n, e in p.items() %}{% if states(e) | is_number and states(e) |\
+      \ int < 10 %}\n  {% set ns.l = ns.l + [n ~ ' (' ~ states(e) ~ '%)'] %}{% endif\
+      \ %}{% endfor %}\n{{ ns.l }}"
+  conditions:
+  - condition: template
+    value_template: '{{ pecas | count > 0 }}'
+  actions:
+  - action: notify.send_message
+    target:
+      entity_id: notify.SEU_CELULAR
+    data:
+      message: '🧽 Robô: hora de trocar {{ pecas | join('', '') }}. Depois de trocar,
+        zere o contador no app.'
+  mode: single
+- id: robo_perdido
+  alias: Robô - parado fora da base ou limpando demais (preso/perdido)
+  description: Avisa se o robô ficar parado ou pausado fora da base por 30 min, ou
+    se ficar "limpando" por mais de 2h30 (provavelmente preso ou sem achar a base).
+  triggers:
+  - trigger: state
+    entity_id: vacuum.robo_w1000
+    to:
+    - idle
+    - paused
+    for:
+      minutes: 30
+    id: parado
+  - trigger: state
+    entity_id: vacuum.robo_w1000
+    to: cleaning
+    for:
+      hours: 2
+      minutes: 30
+    id: demais
+  actions:
+  - action: notify.send_message
+    target:
+      entity_id: notify.SEU_CELULAR
+    data:
+      message: '{% if trigger.id == ''parado'' %}🤖 O robô está parado fora da base
+        há 30 min ({{ ''pausado'' if trigger.to_state.state == ''paused'' else ''parado''
+        }}). Pode estar preso ou perdido. {% else %}🤖 O robô está "limpando" há mais
+        de 2h30 — provavelmente preso ou sem achar a base.{% endif %} Bateria {{ states(''sensor.robo_w1000_robo_bateria'')
+        }}%.'
+  mode: single

@@ -1,0 +1,40 @@
+{
+  "_comentario": "Configuração do WAP W1000 no LocalTuya (fork localtuya_bildass), como ficou funcionando. Troque SEU_DEVICE_ID, SEU_IP e SUA_LOCAL_KEY pelos do seu robô. Protocolo 3.5. 'force_add' e 'skip_connect_check' ligados porque o robô dorme e às vezes não responde na hora de adicionar.",
+  "device_id": "SEU_DEVICE_ID",
+  "host": "SEU_IP",
+  "local_key": "SUA_LOCAL_KEY",
+  "protocol_version": "3.5",
+  "friendly_name": "Robô W1000",
+  "force_add": true,
+  "skip_connect_check": true,
+  "entities": [
+    {
+      "platform": "vacuum",
+      "id": 5,
+      "friendly_name": "Robô W1000",
+      "powergo_dp": 2,
+      "mode_dp": 3,
+      "modes": "smart,wall_follow,spiral",
+      "battery_dp": 6,
+      "clean_area_dp": 16,
+      "clean_time_dp": 17,
+      "fault_dp": 18,
+      "idle_status_value": "standby",
+      "docked_status_value": "charging,charge_done",
+      "returning_status_value": "goto_charge",
+      "return_mode": "chargego",
+      "paused_state": "paused",
+      "stop_status": "standby"
+    },
+    {"platform": "sensor", "id": 6, "friendly_name": "Robô Bateria", "device_class": "battery", "state_class": "measurement", "unit_of_measurement": "%"},
+    {"platform": "sensor", "id": 7, "friendly_name": "Robô Escova lateral", "state_class": "measurement", "unit_of_measurement": "%"},
+    {"platform": "sensor", "id": 8, "friendly_name": "Robô Escova central", "state_class": "measurement", "unit_of_measurement": "%"},
+    {"platform": "sensor", "id": 9, "friendly_name": "Robô Filtro", "state_class": "measurement", "unit_of_measurement": "%"},
+    {"platform": "sensor", "id": 15, "friendly_name": "Robô Registro limpeza"},
+    {"platform": "select", "id": 14, "friendly_name": "Robô Aspiração", "select_options": "low;middle;high", "select_options_friendly": "Silencioso;Normal;Forte"},
+    {"platform": "select", "id": 101, "friendly_name": "Robô Água", "select_options": "close;low;mid;high", "select_options_friendly": "Sem água;Baixo;Médio;Alto"},
+    {"platform": "switch", "id": 103, "friendly_name": "Robô Mute"},
+    {"platform": "switch", "id": 13, "friendly_name": "Robô Procurar (apito)"},
+    {"platform": "number", "id": 28, "friendly_name": "Robô Volume", "min_value": 0, "max_value": 100, "step_size": 1}
+  ]
+}
